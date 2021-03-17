@@ -1,14 +1,14 @@
 [tool.poetry]
-name = "python_startkit"
+name = "final_engineering_project"
 version = "0.1.0"
 description = ""
 authors = ["Yuval Saraf <unimonkiez@gmail.com>"]
 
 [tool.poetry.scripts]
-start = "python_startkit.index:start"
+start = "final_engineering_project.index:start"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.7"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

@@ -1,4 +1,4 @@
-name: python_startkit
+name: final_engineering_project
 
 on: [push]
 
