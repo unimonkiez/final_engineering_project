@@ -3,7 +3,7 @@
 ## Setup
 
 - Install [VSCode](https://code.visualstudio.com/).
-- Install Python [3.8+].
+- Install Python [3.7+].
 - [Install Poetry](https://python-poetry.org/docs/#installation).
 
 ## Installation
