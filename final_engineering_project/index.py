@@ -1,2 +1,5 @@
+import torch
+
+
 def start() -> None:
-    print("hello world")
+    print("PyTorch version is: {0}".format(torch.__version__))  # type: ignore

@@ -24,3 +24,7 @@
   - `poetry run black .` - Format code.
   - `poetry run flake8 .` - Lint code.
   - `poetry run pytest ./tests` - Run tests.
+
+## Dev notes
+
+- Used [this implementation](https://github.com/kaituoxu/Conv-TasNet) as base for this project.
