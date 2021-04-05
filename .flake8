@@ -29,6 +29,7 @@ ignore =
     WPS230, # too many public instance - it OK
     WPS111, # Short variables are OK for me
     WPS609, # magic attribute is OK for me
+    E501, # Line too long is ok, black got us
 per-file-ignores =
     __init__.py: 
         # import unused, for exporting
