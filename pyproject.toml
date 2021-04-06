@@ -6,12 +6,14 @@ authors = ["Yuval Saraf <unimonkiez@gmail.com>"]
 
 [tool.poetry.scripts]
 start = "final_engineering_project.index:start"
-download = "final_engineering_project.index:download"
 
 [tool.poetry.dependencies]
-python = "^3.7"
-torch = "1.7.1"
+python = "^3.7.1"
+torch = "^1.8.1"
 python-dotenv = "^0.17.0"
+pandas = "^1.2.3"
+numpy = "^1.20.2"
+torchaudio = "^0.8.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

@@ -1,2 +1,2 @@
-DATA_PATH=/mnt/dsi_vol1/users/uvsa
-KAGGLE_RELATIVE_PATH=kaggle
+KAGGLE_PATH=/home/dsi/sarahel/dev/final-engineering-project/.data/kaggle
+NOISE_PATH=/home/dsi/sarahel/dev/final-engineering-project/.data/noise

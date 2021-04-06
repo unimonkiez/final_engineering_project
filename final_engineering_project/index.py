@@ -1,17 +1,17 @@
-import torch
-from .properties import data_path
-from .download.main import start_download
-import asyncio
+from final_engineering_project.data.main import create_data
+
+# import torch
+# import asyncio
 
 
 def start() -> None:
-    print("PyTorch version is: {0}".format(torch.__version__))  # type: ignore
-    print(data_path)
+    # print("PyTorch version is: {0}".format(torch.__version__))  # type: ignore
+    create_data()
 
 
-async def download_async() -> None:
-    await start_download()
+# async def download_async() -> None:
+#     await start_download()
 
 
-def download() -> None:
-    asyncio.run(download_async())
+# def download() -> None:
+#     asyncio.run(download_async())
