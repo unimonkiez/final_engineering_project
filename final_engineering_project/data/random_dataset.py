@@ -53,9 +53,9 @@ class RandomDataset(Dataset[SampleType]):
         kaggle_index = torch.cat(
             [
                 (
-                    self._kaggle_indices[i][
+                    self._kaggle_indices[mixure_index][
                         torch.randint(
-                            high=self._kaggle_size[mixure_indecies[i]],
+                            high=self._kaggle_size[mixure_index],
                             size=(int(sample_sizes[i].item()),),
                         )
                     ]
@@ -68,7 +68,9 @@ class RandomDataset(Dataset[SampleType]):
         noise_index = torch.randint(high=self._noise_size, size=(1,))  # type: ignore
         noise_start = torch.rand(1) * 24
         kaggle_start = torch.rand(6)
+        kaggle_start_in_noise = torch.rand(6)
         kaggle_length = (torch.rand(6) * kaggle_diff_length) + kaggle_min_length_seconds
+        events_gain = (torch.rand(1) * 10) + 15
 
         sample = {
             "is_train": is_train,
@@ -76,7 +78,9 @@ class RandomDataset(Dataset[SampleType]):
             "kaggle_index": kaggle_index,
             "noise_start": noise_start,
             "kaggle_start": kaggle_start,
+            "kaggle_start_in_noise": kaggle_start_in_noise,
             "kaggle_length": kaggle_length,
+            "events_gain": events_gain,
         }
 
         return sample

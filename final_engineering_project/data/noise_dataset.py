@@ -24,14 +24,14 @@ class NoiseDataset(Dataset[SampleType]):
     def __len__(self) -> int:
         return len(self._csv)
 
-    def __getitem__(self, idx: Any) -> SampleType:
+    def get_item_with_effects(self, idx: Any, effects: List[List[str]]) -> SampleType:
         if torch.is_tensor(idx):  # type: ignore
             idx = idx.tolist()
 
         wav_path = os.path.join(_root_dir, self._csv.iloc[idx, 0])
         waveform, rate = torchaudio.sox_effects.apply_effects_file(
             path=wav_path,
-            effects=self._effects,
+            effects=self._effects + effects,
             channels_first=True,
         )
 
@@ -41,3 +41,6 @@ class NoiseDataset(Dataset[SampleType]):
         }
 
         return sample
+
+    def __getitem__(self, idx: Any) -> SampleType:
+        return self.get_item_with_effects(idx, [])

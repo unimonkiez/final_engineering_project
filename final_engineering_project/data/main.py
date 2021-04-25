@@ -1,10 +1,18 @@
-from typing import Dict
+from os import path
+from typing import Any, Dict, List
+from numpy.lib import math
+import numpy as np
 import torch
+import torchaudio
+import os
+import csv
 from torch.functional import Tensor
 from .noise_dataset import NoiseDataset
 from .kaggle_dataset import KaggleDataset
 from .random_dataset import RandomDataset
 from torch.utils.data import DataLoader
+from final_engineering_project.properties import train_path, test_path
+
 
 resample = 8000
 train_size = 50000
@@ -37,6 +45,65 @@ def _get_label_to_kaggle_indecies() -> Dict[str, Tensor]:
     return label_to_kaggle_indices
 
 
+def multiply_noise_by_SNR(signal: Tensor, noise: Tensor, desire_snr: float) -> Tensor:
+    signal_ps = signal.var()
+    noise_normalized = noise / noise.std()
+    g = np.sqrt(signal_ps / (10 ** (desire_snr / 10)))
+    new_noise = g * noise_normalized
+    # print(10*np.log10(signal_ps/np.var(new_noise)))
+    return new_noise
+
+
+def _get_events(
+    kaggle_dataset: KaggleDataset,
+    # events_gain: float,
+    kaggle_indecies: List[int],
+    kaggle_starts_in_noise: List[float],
+    kaggle_starts: List[float],
+    kaggle_lengths: List[float],
+) -> List[Dict[str, Any]]:
+    events = []
+    for i, kaggle_index in enumerate(kaggle_indecies):
+        kaggle_start = kaggle_starts[i]
+        kaggle_start_in_noise = kaggle_starts_in_noise[i]
+        kaggle_length = kaggle_lengths[i]
+        sample_length = kaggle_dataset.get_item_length_in_seconds(kaggle_index)
+
+        kaggle_start_real = max(0, sample_length - kaggle_length) * kaggle_start
+        kaggle_length_real = min(sample_length, kaggle_length)
+        padded_silence_in_seconds = (6 - kaggle_length_real) * kaggle_start_in_noise
+        # padded_silence_in_seconds_end = (
+        #     6 - padded_silence_in_seconds - kaggle_length_real
+        # )
+        event = kaggle_dataset.get_item_with_effects(
+            kaggle_index,
+            [
+                # ["gain", "-n", str(events_gain)],
+                [
+                    "trim",
+                    str(kaggle_start_real),
+                    str(kaggle_length_real),
+                ],
+            ],
+        )
+        event["waveform"] = event["waveform"] / event["waveform"].std()  # normalize
+        waveform_length = len(event["waveform"][0])
+        zeros_to_pad_start = torch.zeros(
+            1,
+            math.ceil((6 - kaggle_length_real) * kaggle_start_in_noise * resample),
+        )
+        zeros_to_pad_end = torch.zeros(
+            1,
+            (resample * 6) - waveform_length - len(zeros_to_pad_start[0]),
+        )
+        event["waveform"] = torch.cat(
+            (zeros_to_pad_start, event["waveform"], zeros_to_pad_end),
+            1,
+        )
+        events.append(event)
+    return events
+
+
 def create_data() -> None:
     noise_dataset = NoiseDataset(
         effects=[
@@ -56,7 +123,7 @@ def create_data() -> None:
         noise_size=len(noise_dataset),
         kaggle_indices=kaggle_indices,
         min_mixure=3,
-        max_mixure=3,
+        max_mixure=5,
     )
     random_dataloader = DataLoader(
         random_dataset,
@@ -65,6 +132,92 @@ def create_data() -> None:
         num_workers=0,
     )
 
-    for _, sample_batched in enumerate(random_dataloader):
-        print(sample_batched)
-        break
+    os.makedirs(path.join(train_path, "files"), exist_ok=True)
+    os.makedirs(path.join(test_path, "files"), exist_ok=True)
+    with open(path.join(train_path, "data.csv"), "w", newline="") as train_file:
+        with open(path.join(test_path, "data.csv"), "w", newline="") as test_file:
+            train_writer = csv.writer(train_file)
+            test_writer = csv.writer(test_file)
+            train_writer.writerow(["fname", "labels"])
+            test_writer.writerow(["fname", "labels"])
+
+            for i, sample_batched in enumerate(random_dataloader):
+                is_train = sample_batched["is_train"].item()
+                noise_index = sample_batched["noise_index"].item()
+                noise_start = sample_batched["noise_start"].item()
+                events_gain = sample_batched["events_gain"].item()
+                kaggle_indecies = sample_batched["kaggle_index"].tolist()[0]
+                kaggle_starts = sample_batched["kaggle_start"].tolist()[0]
+                kaggle_starts_in_noise = sample_batched[
+                    "kaggle_start_in_noise"
+                ].tolist()[0]
+                kaggle_lengths = sample_batched["kaggle_length"].tolist()[0]
+
+                processed_path = train_path if is_train else test_path
+                writer = train_writer if is_train else test_writer
+
+                noise = noise_dataset.get_item_with_effects(
+                    noise_index,
+                    [
+                        # ["gain", "-n"],  # normalises to 0dB
+                        ["trim", str(noise_start), str(6)],
+                    ],
+                )
+                events = _get_events(
+                    kaggle_dataset=kaggle_dataset,
+                    # events_gain=events_gain,
+                    kaggle_indecies=kaggle_indecies,
+                    kaggle_starts_in_noise=kaggle_starts_in_noise,
+                    kaggle_starts=kaggle_starts,
+                    kaggle_lengths=kaggle_lengths,
+                )
+
+                noise_waveform = noise["waveform"]
+                single_channel_noise_waveform = torch.sum(
+                    noise_waveform,
+                    dim=0,
+                ).reshape(1, resample * 6)
+                events_waveform = torch.stack(
+                    [event["waveform"] for event in events],
+                    dim=1,
+                ).sum(dim=1)
+                events_waveform = events_waveform / events_waveform.std()
+                snr_noise_waveform = multiply_noise_by_SNR(
+                    signal=events_waveform,
+                    noise=single_channel_noise_waveform,
+                    desire_snr=events_gain,
+                )
+                waveform = torch.stack(
+                    [snr_noise_waveform, events_waveform],
+                    dim=1,
+                ).sum(dim=1)
+
+                fname = "{0}.wav".format(i)
+                labels = "|".join([event["label"] for event in events])
+
+                # torchaudio.save(
+                #     path.join(processed_path, "files", "noise_{0}".format(fname)),
+                #     noise_waveform,
+                #     resample,
+                # )
+                # torchaudio.save(
+                #     path.join(
+                #         processed_path, "files", "single_noise_{0}".format(fname)
+                #     ),
+                #     single_channel_noise_waveform,
+                #     resample,
+                # )
+                # torchaudio.save(
+                #     path.join(processed_path, "files", "events_{0}".format(fname)),
+                #     events_waveform,
+                #     resample,
+                # )
+                torchaudio.save(
+                    path.join(processed_path, "files", "{0}".format(fname)),
+                    waveform,
+                    resample,
+                )
+
+                writer.writerow([fname, labels])
+
+                break
