@@ -1,7 +1,7 @@
+import time
 from os import path
 from typing import Any, Dict, List
 from numpy.lib import math
-import numpy as np
 import torch
 import torchaudio
 import os
@@ -15,8 +15,9 @@ from final_engineering_project.properties import train_path, test_path
 
 
 resample = 8000
-train_size = 50000
-test_size = 10000
+train_size = 1000
+test_size = 0
+print_every = 20
 
 resample_effect = ["rate", str(resample)]
 
@@ -48,13 +49,14 @@ def _get_label_to_kaggle_indecies() -> Dict[str, Tensor]:
 def multiply_noise_by_SNR(signal: Tensor, noise: Tensor, desire_snr: float) -> Tensor:
     signal_ps = signal.var()
     noise_normalized = noise / noise.std()
-    g = np.sqrt(signal_ps / (10 ** (desire_snr / 10)))
+    g = torch.sqrt(signal_ps / (10 ** (desire_snr / 10)))
     new_noise = g * noise_normalized
     # print(10*np.log10(signal_ps/np.var(new_noise)))
     return new_noise
 
 
 def _get_events(
+    gpu_device: Any,
     kaggle_dataset: KaggleDataset,
     # events_gain: float,
     kaggle_indecies: List[int],
@@ -81,30 +83,36 @@ def _get_events(
                 # ["gain", "-n", str(events_gain)],
                 [
                     "trim",
-                    str(kaggle_start_real),
-                    str(kaggle_length_real),
+                    format(kaggle_start_real, "f"),
+                    format(kaggle_length_real, "f"),
                 ],
             ],
         )
-        event["waveform"] = event["waveform"] / event["waveform"].std()  # normalize
-        waveform_length = len(event["waveform"][0])
+        waveform_gpu = event["waveform"].to(gpu_device)
+        waveform_gpu = waveform_gpu / waveform_gpu.std()  # normalize
+        waveform_length = len(waveform_gpu[0])
         zeros_to_pad_start = torch.zeros(
             1,
             math.ceil((6 - kaggle_length_real) * kaggle_start_in_noise * resample),
+            device=gpu_device,
         )
         zeros_to_pad_end = torch.zeros(
             1,
             (resample * 6) - waveform_length - len(zeros_to_pad_start[0]),
+            device=gpu_device,
         )
-        event["waveform"] = torch.cat(
-            (zeros_to_pad_start, event["waveform"], zeros_to_pad_end),
+        waveform_gpu = torch.cat(
+            (zeros_to_pad_start, waveform_gpu, zeros_to_pad_end),
             1,
         )
+        event["waveform"] = waveform_gpu
         events.append(event)
     return events
 
 
 def create_data() -> None:
+    previous_time = time.time()
+
     noise_dataset = NoiseDataset(
         effects=[
             resample_effect,
@@ -134,6 +142,9 @@ def create_data() -> None:
 
     os.makedirs(path.join(train_path, "files"), exist_ok=True)
     os.makedirs(path.join(test_path, "files"), exist_ok=True)
+    gpu_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    cpu_device = torch.device("cpu")
+
     with open(path.join(train_path, "data.csv"), "w", newline="") as train_file:
         with open(path.join(test_path, "data.csv"), "w", newline="") as test_file:
             train_writer = csv.writer(train_file)
@@ -164,6 +175,7 @@ def create_data() -> None:
                     ],
                 )
                 events = _get_events(
+                    gpu_device=gpu_device,
                     kaggle_dataset=kaggle_dataset,
                     # events_gain=events_gain,
                     kaggle_indecies=kaggle_indecies,
@@ -173,45 +185,47 @@ def create_data() -> None:
                 )
 
                 noise_waveform = noise["waveform"]
-                single_channel_noise_waveform = torch.sum(
-                    noise_waveform,
-                    dim=0,
-                ).reshape(1, resample * 6)
-                events_waveform = torch.stack(
+                noise_waveform_gpu = noise_waveform.to(gpu_device)
+                events_waveform_gpu = torch.stack(
                     [event["waveform"] for event in events],
                     dim=1,
                 ).sum(dim=1)
-                events_waveform = events_waveform / events_waveform.std()
-                snr_noise_waveform = multiply_noise_by_SNR(
-                    signal=events_waveform,
-                    noise=single_channel_noise_waveform,
+                single_channel_noise_waveform_gpu = torch.sum(
+                    noise_waveform_gpu,
+                    dim=0,
+                ).reshape(1, resample * 6)
+                events_waveform_gpu = events_waveform_gpu / events_waveform_gpu.std()
+                snr_noise_waveform_gpu = multiply_noise_by_SNR(
+                    signal=events_waveform_gpu,
+                    noise=single_channel_noise_waveform_gpu,
                     desire_snr=events_gain,
                 )
-                waveform = torch.stack(
-                    [snr_noise_waveform, events_waveform],
+                waveform_gpu = torch.stack(
+                    [snr_noise_waveform_gpu, events_waveform_gpu],
                     dim=1,
                 ).sum(dim=1)
+                waveform = waveform_gpu.to(cpu_device)
 
                 fname = "{0}.wav".format(i)
                 labels = "|".join([event["label"] for event in events])
 
-                # torchaudio.save(
-                #     path.join(processed_path, "files", "noise_{0}".format(fname)),
-                #     noise_waveform,
-                #     resample,
-                # )
-                # torchaudio.save(
-                #     path.join(
-                #         processed_path, "files", "single_noise_{0}".format(fname)
-                #     ),
-                #     single_channel_noise_waveform,
-                #     resample,
-                # )
-                # torchaudio.save(
-                #     path.join(processed_path, "files", "events_{0}".format(fname)),
-                #     events_waveform,
-                #     resample,
-                # )
+                torchaudio.save(
+                    path.join(processed_path, "files", "noise_{0}".format(fname)),
+                    noise_waveform,
+                    resample,
+                )
+                torchaudio.save(
+                    path.join(
+                        processed_path, "files", "single_noise_{0}".format(fname)
+                    ),
+                    single_channel_noise_waveform_gpu.to(cpu_device),
+                    resample,
+                )
+                torchaudio.save(
+                    path.join(processed_path, "files", "events_{0}".format(fname)),
+                    events_waveform_gpu.to(cpu_device),
+                    resample,
+                )
                 torchaudio.save(
                     path.join(processed_path, "files", "{0}".format(fname)),
                     waveform,
@@ -219,5 +233,16 @@ def create_data() -> None:
                 )
 
                 writer.writerow([fname, labels])
+
+                iteration = i + 1
+                if iteration % print_every == 0:
+                    now = time.time()
+                    print(
+                        "proccessed {number} of files, this batch took {diff} seconds.".format(
+                            number=iteration,
+                            diff=now - previous_time,
+                        ),
+                    )
+                    previous_time = now
 
                 break
