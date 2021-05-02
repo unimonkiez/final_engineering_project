@@ -1,3 +1,4 @@
+from shutil import rmtree
 import time
 from os import path
 from typing import Any, Dict, List
@@ -15,15 +16,15 @@ from final_engineering_project.properties import train_path, test_path
 
 
 resample = 8000
-train_size = 1000
-test_size = 0
-print_every = 20
+train_size = 100
+test_size = 10
+print_every = 5
 
 resample_effect = ["rate", str(resample)]
 
 
-def _get_label_to_kaggle_indecies() -> Dict[str, Tensor]:
-    kaggle_dataset = KaggleDataset(no_load=True)
+def _get_label_to_kaggle_indecies(is_test=False) -> Dict[str, Tensor]:
+    kaggle_dataset = KaggleDataset(no_load=True, is_test=is_test)
     label_to_kaggle_indices: Dict[str, Tensor] = {}
     dataloader = DataLoader(
         kaggle_dataset,
@@ -46,9 +47,13 @@ def _get_label_to_kaggle_indecies() -> Dict[str, Tensor]:
     return label_to_kaggle_indices
 
 
+def normalize(signal: Tensor) -> Tensor:
+    return signal / signal.std()
+
+
 def multiply_noise_by_SNR(signal: Tensor, noise: Tensor, desire_snr: float) -> Tensor:
     signal_ps = signal.var()
-    noise_normalized = noise / noise.std()
+    noise_normalized = normalize(noise)
     g = torch.sqrt(signal_ps / (10 ** (desire_snr / 10)))
     new_noise = g * noise_normalized
     # print(10*np.log10(signal_ps/np.var(new_noise)))
@@ -73,14 +78,9 @@ def _get_events(
 
         kaggle_start_real = max(0, sample_length - kaggle_length) * kaggle_start
         kaggle_length_real = min(sample_length, kaggle_length)
-        padded_silence_in_seconds = (6 - kaggle_length_real) * kaggle_start_in_noise
-        # padded_silence_in_seconds_end = (
-        #     6 - padded_silence_in_seconds - kaggle_length_real
-        # )
         event = kaggle_dataset.get_item_with_effects(
             kaggle_index,
             [
-                # ["gain", "-n", str(events_gain)],
                 [
                     "trim",
                     format(kaggle_start_real, "f"),
@@ -88,8 +88,7 @@ def _get_events(
                 ],
             ],
         )
-        waveform_gpu = event["waveform"].to(gpu_device)
-        waveform_gpu = waveform_gpu / waveform_gpu.std()  # normalize
+        waveform_gpu = normalize(event["waveform"].to(gpu_device))
         waveform_length = len(waveform_gpu[0])
         zeros_to_pad_start = torch.zeros(
             1,
@@ -118,18 +117,29 @@ def create_data() -> None:
             resample_effect,
         ],
     )
-    kaggle_dataset = KaggleDataset(
+    kaggle_dataset_test = KaggleDataset(
+        is_test=True,
         effects=[
             resample_effect,
         ],
     )
-    label_to_kaggle_indices = _get_label_to_kaggle_indecies()
-    kaggle_indices = list(label_to_kaggle_indices.values())
+    kaggle_dataset_train = KaggleDataset(
+        is_test=False,
+        effects=[
+            resample_effect,
+        ],
+    )
+    label_to_kaggle_indices_test = _get_label_to_kaggle_indecies(is_test=True)
+    label_to_kaggle_indices_train = _get_label_to_kaggle_indecies(is_test=False)
+    kaggle_indices_test = list(label_to_kaggle_indices_test.values())
+    kaggle_indices_train = list(label_to_kaggle_indices_train.values())
+
     random_dataset = RandomDataset(
         train_size=train_size,
         test_size=test_size,
         noise_size=len(noise_dataset),
-        kaggle_indices=kaggle_indices,
+        kaggle_indices_test=kaggle_indices_test,
+        kaggle_indices_train=kaggle_indices_train,
         min_mixure=3,
         max_mixure=5,
     )
@@ -140,8 +150,11 @@ def create_data() -> None:
         num_workers=0,
     )
 
+    rmtree(train_path, ignore_errors=True)
+    rmtree(test_path, ignore_errors=True)
     os.makedirs(path.join(train_path, "files"), exist_ok=True)
     os.makedirs(path.join(test_path, "files"), exist_ok=True)
+
     gpu_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     cpu_device = torch.device("cpu")
 
@@ -149,8 +162,8 @@ def create_data() -> None:
         with open(path.join(test_path, "data.csv"), "w", newline="") as test_file:
             train_writer = csv.writer(train_file)
             test_writer = csv.writer(test_file)
-            train_writer.writerow(["fname", "labels"])
-            test_writer.writerow(["fname", "labels"])
+            train_writer.writerow(["fname", "events", "labels"])
+            test_writer.writerow(["fname", "events", "labels"])
 
             for i, sample_batched in enumerate(random_dataloader):
                 is_train = sample_batched["is_train"].item()
@@ -166,6 +179,9 @@ def create_data() -> None:
 
                 processed_path = train_path if is_train else test_path
                 writer = train_writer if is_train else test_writer
+                kaggle_dataset = (
+                    kaggle_dataset_train if is_train else kaggle_dataset_test
+                )
 
                 noise = noise_dataset.get_item_with_effects(
                     noise_index,
@@ -177,24 +193,40 @@ def create_data() -> None:
                 events = _get_events(
                     gpu_device=gpu_device,
                     kaggle_dataset=kaggle_dataset,
-                    # events_gain=events_gain,
                     kaggle_indecies=kaggle_indecies,
                     kaggle_starts_in_noise=kaggle_starts_in_noise,
                     kaggle_starts=kaggle_starts,
                     kaggle_lengths=kaggle_lengths,
                 )
+                labels = list(set(map(lambda x: x["label"], events)))
+                events_seperated_by_label = [
+                    [y for y in events if y["label"] == x] for x in labels
+                ]
+                class_events = [
+                    {
+                        "label": labels[i],
+                        "waveform": normalize(
+                            torch.stack(
+                                [event["waveform"] for event in x],
+                                dim=1,
+                            ).sum(dim=1)
+                        ),
+                    }
+                    for i, x in enumerate(events_seperated_by_label)
+                ]
 
                 noise_waveform = noise["waveform"]
                 noise_waveform_gpu = noise_waveform.to(gpu_device)
-                events_waveform_gpu = torch.stack(
-                    [event["waveform"] for event in events],
-                    dim=1,
-                ).sum(dim=1)
                 single_channel_noise_waveform_gpu = torch.sum(
                     noise_waveform_gpu,
                     dim=0,
                 ).reshape(1, resample * 6)
-                events_waveform_gpu = events_waveform_gpu / events_waveform_gpu.std()
+                events_waveform_gpu = normalize(
+                    torch.stack(
+                        [event["waveform"] for event in class_events],
+                        dim=1,
+                    ).sum(dim=1)
+                )
                 snr_noise_waveform_gpu = multiply_noise_by_SNR(
                     signal=events_waveform_gpu,
                     noise=single_channel_noise_waveform_gpu,
@@ -207,32 +239,45 @@ def create_data() -> None:
                 waveform = waveform_gpu.to(cpu_device)
 
                 fname = "{0}.wav".format(i)
-                labels = "|".join([event["label"] for event in events])
+                events_str = "|".join(
+                    ["{0}_{1}.wav".format(i, label) for label in labels]
+                )
+                labels_str = "|".join(labels)
 
-                torchaudio.save(
-                    path.join(processed_path, "files", "noise_{0}".format(fname)),
-                    noise_waveform,
-                    resample,
-                )
-                torchaudio.save(
-                    path.join(
-                        processed_path, "files", "single_noise_{0}".format(fname)
-                    ),
-                    single_channel_noise_waveform_gpu.to(cpu_device),
-                    resample,
-                )
-                torchaudio.save(
-                    path.join(processed_path, "files", "events_{0}".format(fname)),
-                    events_waveform_gpu.to(cpu_device),
-                    resample,
-                )
+                # torchaudio.save(
+                #     path.join(processed_path, "files", "noise_{0}".format(fname)),
+                #     noise_waveform,
+                #     resample,
+                # )
+                # torchaudio.save(
+                #     path.join(
+                #         processed_path,
+                #         "files",
+                #         "single_noise_{0}".format(fname),
+                #     ),
+                #     single_channel_noise_waveform_gpu.to(cpu_device),
+                #     resample,
+                # )
+                # torchaudio.save(
+                #     path.join(processed_path, "files", "events_{0}".format(fname)),
+                #     events_waveform_gpu.to(cpu_device),
+                #     resample,
+                # )
                 torchaudio.save(
                     path.join(processed_path, "files", "{0}".format(fname)),
                     waveform,
                     resample,
                 )
+                for x in class_events:
+                    torchaudio.save(
+                        path.join(
+                            processed_path, "files", "{0}_{1}.wav".format(i, x["label"])
+                        ),
+                        x["waveform"].to(cpu_device),
+                        resample,
+                    )
 
-                writer.writerow([fname, labels])
+                writer.writerow([fname, events_str, labels_str])
 
                 iteration = i + 1
                 if iteration % print_every == 0:
@@ -245,4 +290,4 @@ def create_data() -> None:
                     )
                     previous_time = now
 
-                break
+                # break

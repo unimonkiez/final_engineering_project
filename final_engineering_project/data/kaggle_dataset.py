@@ -6,8 +6,10 @@ import pandas as pd  # type: ignore
 from torch.utils.data import Dataset
 from final_engineering_project.properties import kaggle_path
 
-_csv_file = os.path.join(kaggle_path, "train.csv")
-_root_dir = os.path.join(kaggle_path, "audio_train")
+_csv_train_file = os.path.join(kaggle_path, "train.csv")
+_csv_test_file = os.path.join(kaggle_path, "test.csv")
+_train_root_dir = os.path.join(kaggle_path, "audio_train")
+_test_root_dir = os.path.join(kaggle_path, "audio_test")
 
 SampleType = Dict[str, Any]
 EffectsInitType = Optional[List[List[str]]]
@@ -16,10 +18,12 @@ EffectsInitType = Optional[List[List[str]]]
 class KaggleDataset(Dataset[SampleType]):
     def __init__(
         self,
+        is_test: bool = False,
         no_load: bool = False,
         effects: EffectsInitType = None,
     ) -> None:
-        self._csv = pd.read_csv(_csv_file)
+        self._csv = pd.read_csv(_csv_test_file if is_test else _csv_train_file)
+        self._root_dir = _test_root_dir if is_test else _train_root_dir
         self._no_load = no_load
         self._effects = effects if effects else []
 
@@ -29,7 +33,7 @@ class KaggleDataset(Dataset[SampleType]):
     def get_item_length_in_seconds(self, idx: Any) -> float:
         if torch.is_tensor(idx):  # type: ignore
             idx = idx.tolist()
-        wav_path = os.path.join(_root_dir, self._csv.iloc[idx, 0])
+        wav_path = os.path.join(self._root_dir, self._csv.iloc[idx, 0])
         info = torchaudio.info(wav_path)
 
         return info.num_frames / info.sample_rate
@@ -46,7 +50,7 @@ class KaggleDataset(Dataset[SampleType]):
                 "label": label,
             }
         else:
-            wav_path = os.path.join(_root_dir, self._csv.iloc[idx, 0])
+            wav_path = os.path.join(self._root_dir, self._csv.iloc[idx, 0])
             waveform, rate = torchaudio.sox_effects.apply_effects_file(
                 path=wav_path,
                 effects=self._effects + effects,
