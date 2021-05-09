@@ -1,4 +1,4 @@
-from final_engineering_project.data.main import create_data
+from final_engineering_project.data.create_data import create_data
 from final_engineering_project.train.train import train
 from final_engineering_project.test.test import test
 
@@ -17,7 +17,7 @@ def step_3() -> None:
 
 def start() -> None:
     # print("PyTorch version is: {0}".format(torch.__version__))  # type: ignore
-    step_1()
+    step_2()
 
 
 # async def download_async() -> None:

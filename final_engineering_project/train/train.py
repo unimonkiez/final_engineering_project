@@ -1,3 +1,5 @@
+from final_engineering_project.train.model import Model
+from final_engineering_project.train.OVectorUtility import OVectorUtility
 import os
 import torch
 import torchaudio
@@ -17,34 +19,35 @@ def train() -> None:
     gpu_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # cpu_device = torch.device("cpu")
 
+    o_vector_utility = OVectorUtility(
+        device=gpu_device,
+    )
+
     train_dataset = TrainDataset(
+        o_vector_utility=o_vector_utility,
         device=gpu_device,
     )
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=4,
+        batch_size=1,
         shuffle=False,
     )
 
-    model = ConvTasNet(
-        num_sources=4,
-        # encoder/decoder parameters
-        enc_kernel_size=20,
-        enc_num_feats=256,
-        # mask generator parameters
-        msk_kernel_size=3,
-        msk_num_feats=256,
-        msk_num_hidden_feats=512,
-        msk_num_layers=8,
-        msk_num_stacks=4,
+    model = Model(
+        o_vector_length=o_vector_utility.get_vector_length(),
+        device=gpu_device,
+    )
+
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=1e-3,
+        weight_decay=0.0,
     )
 
     solver = Solver(
         data=train_dataloader,
         model=model,
+        optimizer=optimizer,
     )
     solver.train()
-    torch.save(model, model_path)
-
-    # for (batch_idx, batch) in enumerate(train_dataloader):
-    #     print("\nBatch = " + str(batch_idx))
+    torch.save(model.state_dict(), model_path)
