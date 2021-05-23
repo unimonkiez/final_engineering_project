@@ -1,26 +1,22 @@
 from shutil import rmtree
 import time
 from os import path
-from numpy.lib import math
+from typing import Optional
 import torch
 import torchaudio
 import os
 import csv
-from torch.functional import Tensor
 from .mixure_dataset import MixureDataset
-from .kaggle_dataset import KaggleDataset
-from .random_dataset import RandomDataset
-from torch.utils.data import DataLoader
 from final_engineering_project.properties import train_path, test_path
 
 resample = 8000
 
-train_size = 100
-test_size = 10
-print_every = 5
 
-
-def create_data() -> None:
+def create_data(
+    train_size: int,
+    test_size: int,
+    print_progress_every: Optional[int],
+) -> None:
     previous_time = time.time()
 
     gpu_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -44,7 +40,8 @@ def create_data() -> None:
             train_writer.writerow(["fname", "events", "labels"])
             test_writer.writerow(["fname", "events", "labels"])
 
-            for i, sample_batched in enumerate(mixure_dataset):
+            for i in range(len(mixure_dataset)):
+                sample_batched = mixure_dataset[i]
                 is_train = sample_batched["is_train"]
                 waveform = sample_batched["waveform"]
                 events = sample_batched["events"]
@@ -77,15 +74,14 @@ def create_data() -> None:
 
                 writer.writerow([fname, events_str, labels_str])
 
-                iteration = i + 1
-                if iteration % print_every == 0:
-                    now = time.time()
-                    print(
-                        "proccessed {number} of files, this batch took {diff} seconds.".format(
-                            number=iteration,
-                            diff=now - previous_time,
-                        ),
-                    )
-                    previous_time = now
-
-                # break
+                if print_progress_every is not None:
+                    iteration = i + 1
+                    if iteration % print_progress_every == 0:
+                        now = time.time()
+                        print(
+                            "proccessed {number} of files, this batch took {diff} seconds.".format(
+                                number=iteration,
+                                diff=now - previous_time,
+                            ),
+                        )
+                        previous_time = now

@@ -1,8 +1,7 @@
+from typing import Optional
 import torch
 import time
 from torch.utils.data import DataLoader
-
-_print_every = 20
 
 
 class Solver(object):
@@ -11,13 +10,21 @@ class Solver(object):
         data: DataLoader,
         model: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
+        model_path: str,
+        save_model_every: Optional[int],
+        print_progress_every: Optional[int],
     ) -> None:
         self._data = data
         self._model = model
         self._optimizer = optimizer
         self._criterion = torch.nn.MSELoss(reduction="sum")
+        self._model_path = model_path
+        self._save_model_every = save_model_every
+        self._print_progress_every = print_progress_every
 
-    def train(self) -> None:
+    def train(
+        self,
+    ) -> None:
         print("Training..")
         previous_time = time.time()
 
@@ -34,14 +41,19 @@ class Solver(object):
                 self._optimizer.step()
 
             iteration = i + 1
-            if iteration % _print_every == 0:
-                now = time.time()
-                print(
-                    "trained {number} of batches, this batch took {diff} seconds.".format(
-                        number=iteration,
-                        diff=now - previous_time,
-                    ),
-                )
-                previous_time = now
-            break
+
+            if self._save_model_every is not None:
+                if iteration % self._save_model_every == 0:
+                    torch.save(self._model.state_dict(), self._model_path)
+
+            if self._print_progress_every is not None:
+                if iteration % self._print_progress_every == 0:
+                    now = time.time()
+                    print(
+                        "trained {number} of batches, this batch took {diff} seconds.".format(
+                            number=iteration,
+                            diff=now - previous_time,
+                        ),
+                    )
+                    previous_time = now
         print("Finished training!")

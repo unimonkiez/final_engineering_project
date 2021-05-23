@@ -1,3 +1,4 @@
+from typing import Optional
 from final_engineering_project.train.model import Model
 from final_engineering_project.train.OVectorUtility import OVectorUtility
 import os
@@ -10,11 +11,19 @@ from .solver import Solver
 from .train_dataset import TrainDataset
 
 
-def train() -> None:
-    try:
-        os.remove(model_path)
-    except OSError:
-        pass
+def train(
+    use_fs: bool,
+    override_model: bool,
+    size: int,
+    batch_size: int,
+    save_model_every: Optional[int],
+    print_progress_every: Optional[int],
+) -> None:
+    if override_model:
+        try:
+            os.remove(model_path)
+        except OSError:
+            pass
 
     gpu_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # cpu_device = torch.device("cpu")
@@ -26,10 +35,13 @@ def train() -> None:
     train_dataset = TrainDataset(
         o_vector_utility=o_vector_utility,
         device=gpu_device,
+        from_fs=use_fs,
+        length=size,
     )
+
     train_dataloader = DataLoader(
         train_dataset,
-        batch_size=1,
+        batch_size=batch_size,
         shuffle=False,
     )
 
@@ -37,6 +49,9 @@ def train() -> None:
         o_vector_length=o_vector_utility.get_vector_length(),
         device=gpu_device,
     )
+    if not override_model:
+        model.load_state_dict(torch.load(model_path))
+        model.eval()
 
     optimizer = torch.optim.Adam(
         model.parameters(),
@@ -48,6 +63,10 @@ def train() -> None:
         data=train_dataloader,
         model=model,
         optimizer=optimizer,
+        model_path=model_path,
+        save_model_every=save_model_every,
+        print_progress_every=print_progress_every,
     )
     solver.train()
+
     torch.save(model.state_dict(), model_path)
