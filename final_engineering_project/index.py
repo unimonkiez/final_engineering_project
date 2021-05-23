@@ -17,7 +17,7 @@ def step_3() -> None:
 
 def start() -> None:
     # print("PyTorch version is: {0}".format(torch.__version__))  # type: ignore
-    step_2()
+    step_1()
 
 
 # async def download_async() -> None:
