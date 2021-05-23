@@ -6,16 +6,7 @@
       "type": "python",
       "request": "launch",
       "module": "final_engineering_project",
-      "args": [
-        "--train-enable",
-        "--train-override-model",
-        "--train-print-progress-every",
-        "5",
-        "--train-batch-size",
-        "10",
-        "--train-size",
-        "1000"
-      ]
+      "args": ["--test-enable"]
     }
   ]
 }
