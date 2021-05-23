@@ -31,12 +31,6 @@ def create_data() -> None:
         test_size=test_size,
         device=gpu_device,
     )
-    mixure_dataloader = DataLoader(
-        mixure_dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=0,
-    )
 
     rmtree(train_path, ignore_errors=True)
     rmtree(test_path, ignore_errors=True)
@@ -50,11 +44,11 @@ def create_data() -> None:
             train_writer.writerow(["fname", "events", "labels"])
             test_writer.writerow(["fname", "events", "labels"])
 
-            for i, sample_batched in enumerate(mixure_dataloader):
-                is_train = sample_batched["is_train"].item()
+            for i, sample_batched in enumerate(mixure_dataset):
+                is_train = sample_batched["is_train"]
                 waveform = sample_batched["waveform"]
                 events = sample_batched["events"]
-                labels = [x[0] for x in sample_batched["labels"]]
+                labels = sample_batched["labels"]
 
                 processed_path = train_path if is_train else test_path
                 writer = train_writer if is_train else test_writer
@@ -70,10 +64,12 @@ def create_data() -> None:
                     waveform.to(cpu_device),
                     resample,
                 )
-                for x in events:
+                for x_i, x in enumerate(events):
                     torchaudio.save(
                         path.join(
-                            processed_path, "files", "{0}_{1}.wav".format(i, x["label"])
+                            processed_path,
+                            "files",
+                            "{0}_{1}.wav".format(i, labels[x_i]),
                         ),
                         x.to(cpu_device),
                         resample,
