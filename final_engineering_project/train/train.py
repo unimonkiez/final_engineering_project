@@ -16,6 +16,8 @@ def train(
     override_model: bool,
     size: int,
     batch_size: int,
+    min_mixure: int,
+    max_mixure: int,
     save_model_every: Optional[int],
     print_progress_every: Optional[int],
 ) -> None:
@@ -36,6 +38,8 @@ def train(
         o_vector_utility=o_vector_utility,
         device=gpu_device,
         from_fs=use_fs,
+        min_mixure=min_mixure,
+        max_mixure=max_mixure,
         length=size,
     )
 

@@ -63,7 +63,7 @@ class RandomDataset(Dataset[SampleType]):
             size=(1,),
         )
         sample_sizes = get_sample_sizes(number_of_kaggle_for_mix, mixures.item())
-        mixure_indecies = torch.randint(high=len(kaggle_size), size=(mixures,))
+        mixure_indecies = torch.randperm(len(kaggle_size))[:mixures]
         kaggle_index = torch.cat(
             [
                 (

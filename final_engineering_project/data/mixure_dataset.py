@@ -105,8 +105,8 @@ class MixureDataset(Dataset[SampleType]):
         self,
         train_size: int,
         test_size: int,
-        min_mixure: int = 3,
-        max_mixure: int = 3,
+        min_mixure: int,
+        max_mixure: int,
         device: Any = None,
     ) -> None:
         self._train_size = train_size

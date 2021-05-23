@@ -19,6 +19,8 @@ class TrainDataset(Dataset[SampleType]):
     def __init__(
         self,
         o_vector_utility: OVectorUtility,
+        min_mixure: int,
+        max_mixure: int,
         device: Any = None,
         from_fs: bool = True,
         length: int = 0,
@@ -35,6 +37,8 @@ class TrainDataset(Dataset[SampleType]):
                 train_size=length,
                 test_size=0,
                 device=device,
+                min_mixure=min_mixure,
+                max_mixure=max_mixure,
             )
 
     def __len__(self) -> int:

@@ -30,6 +30,22 @@ _parser.add_argument(
 )
 
 _parser.add_argument(
+    "--data-min-mixure",
+    type=int,
+    required=False,
+    default=3,
+    help="Minimum number of classes in mixure when creating data.",
+)
+
+_parser.add_argument(
+    "--data-max-mixure",
+    type=int,
+    required=False,
+    default=3,
+    help="Maximum number of classes in mixure when creating data.",
+)
+
+_parser.add_argument(
     "--data-print-progress-every",
     type=int,
     required=False,
@@ -57,6 +73,22 @@ _parser.add_argument(
     help="Whatever or not execute train model step.",
 )
 _parser.set_defaults(train_use_fs=False)
+
+_parser.add_argument(
+    "--train-min-mixure",
+    type=int,
+    required=False,
+    default=3,
+    help="Minimum number of classes in mixure if not using fs when creating data.",
+)
+
+_parser.add_argument(
+    "--train-max-mixure",
+    type=int,
+    required=False,
+    default=3,
+    help="Maximum number of classes in mixure if not using fs when creating data.",
+)
 
 _parser.add_argument(
     "--train-override-model",

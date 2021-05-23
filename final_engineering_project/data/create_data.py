@@ -15,6 +15,8 @@ resample = 8000
 def create_data(
     train_size: int,
     test_size: int,
+    min_mixure: int,
+    max_mixure: int,
     print_progress_every: Optional[int],
 ) -> None:
     previous_time = time.time()
@@ -26,6 +28,8 @@ def create_data(
         train_size=train_size,
         test_size=test_size,
         device=gpu_device,
+        min_mixure=min_mixure,
+        max_mixure=max_mixure,
     )
 
     rmtree(train_path, ignore_errors=True)
