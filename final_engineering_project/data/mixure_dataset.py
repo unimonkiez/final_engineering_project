@@ -1,4 +1,6 @@
+import time
 from typing import Any, Dict, List
+from numpy import floor
 import torch
 from numpy.lib import math
 from torch.functional import Tensor
@@ -164,13 +166,17 @@ class MixureDataset(Dataset[SampleType]):
             self._kaggle_dataset_train if is_train else self._kaggle_dataset_test
         )
 
-        noise = self._noise_dataset.get_item_with_effects(
-            noise_index,
-            [
-                # ["gain", "-n"],  # normalises to 0dB
-                ["trim", str(noise_start), str(6)],
-            ],
-        )
+        noise_not_trimmed = self._noise_dataset[noise_index]
+        noise_waveform_not_trimmed = noise_not_trimmed["waveform"]
+        noise_waveform_gpu_not_trimmed = noise_waveform_not_trimmed.to(self._device)
+        noise_start_sample = int(floor(noise_start * resample))
+        noise_waveform_gpu = noise_waveform_gpu_not_trimmed[
+            :,
+            noise_start_sample : (noise_start_sample + resample * 6),
+        ]
+
+        # previous_time = time.time()
+
         events = _get_events(
             gpu_device=self._device,
             kaggle_dataset=kaggle_dataset,
@@ -179,6 +185,14 @@ class MixureDataset(Dataset[SampleType]):
             kaggle_starts=kaggle_starts,
             kaggle_lengths=kaggle_lengths,
         )
+
+        # now = time.time()
+        # print(
+        #     "data {diff} seconds.".format(
+        #         diff=now - previous_time,
+        #     ),
+        # )
+
         labels = list(set(map(lambda x: x["label"], events)))
         events_seperated_by_label = [
             [y for y in events if y["label"] == x] for x in labels
@@ -196,8 +210,6 @@ class MixureDataset(Dataset[SampleType]):
             for i, x in enumerate(events_seperated_by_label)
         ]
 
-        noise_waveform = noise["waveform"]
-        noise_waveform_gpu = noise_waveform.to(self._device)
         single_channel_noise_waveform_gpu = torch.sum(
             noise_waveform_gpu,
             dim=0,

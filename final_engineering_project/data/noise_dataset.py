@@ -1,3 +1,4 @@
+from functools import lru_cache
 import os
 from typing import Any, Dict, List, Optional
 import torch
@@ -42,5 +43,6 @@ class NoiseDataset(Dataset[SampleType]):
 
         return sample
 
+    @lru_cache(maxsize=None)
     def __getitem__(self, idx: Any) -> SampleType:
         return self.get_item_with_effects(idx, [])

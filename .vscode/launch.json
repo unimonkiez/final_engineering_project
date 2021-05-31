@@ -2,11 +2,25 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: Module",
+      "name": "Test",
       "type": "python",
       "request": "launch",
       "module": "final_engineering_project",
       "args": ["--test-enable"]
+    }
+    {
+      "name": "Train",
+      "type": "python",
+      "request": "launch",
+      "module": "final_engineering_project",
+      "args": [
+        "--train-enable",
+        "--train-override-model",
+        "--train-print-progress-every",
+        "1",
+        "--train-batch-size",
+        "1"
+      ]
     }
   ]
 }
