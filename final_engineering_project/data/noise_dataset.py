@@ -21,6 +21,12 @@ class NoiseDataset(Dataset[SampleType]):
     ) -> None:
         self._csv = pd.read_csv(_csv_file)
         self._effects = effects if effects else []
+        self._load_all_to_cache()
+
+    def _load_all_to_cache(self) -> None:
+        length = self.__len__()
+        for idx in range(length):
+            self.__getitem__(idx)
 
     def __len__(self) -> int:
         return len(self._csv)

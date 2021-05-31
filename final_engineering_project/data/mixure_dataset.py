@@ -13,6 +13,8 @@ SampleType = Dict[str, Any]
 
 resample = 8000
 
+_use_cache = False
+
 resample_effect = ["rate", str(resample)]
 
 
@@ -69,20 +71,42 @@ def _get_events(
         kaggle_length = kaggle_lengths[i]
         sample_length = kaggle_dataset.get_item_length_in_seconds(kaggle_index)
 
-        kaggle_start_real = max(0, sample_length - kaggle_length) * kaggle_start
-        kaggle_length_real = min(sample_length, kaggle_length)
-        event = kaggle_dataset.get_item_with_effects(
-            kaggle_index,
-            [
+        if _use_cache:
+            kaggle_start_sample = int(
+                floor(max(0, sample_length - kaggle_length) * kaggle_start * resample)
+            )
+            kaggle_end_sample = int(
+                floor(
+                    min(
+                        sample_length * resample,
+                        kaggle_start_sample + (kaggle_length * resample),
+                    )
+                )
+            )
+
+            event = kaggle_dataset[kaggle_index]
+
+            waveform_not_trimmed = event["waveform"].to(gpu_device)
+            waveform_gpu = waveform_not_trimmed[
+                :, kaggle_start_sample:kaggle_end_sample
+            ]
+        else:
+            kaggle_start_real = max(0, sample_length - kaggle_length) * kaggle_start
+            kaggle_length_real = min(sample_length, kaggle_length)
+            event = kaggle_dataset.get_item_with_effects(
+                kaggle_index,
                 [
-                    "trim",
-                    format(kaggle_start_real, "f"),
-                    format(kaggle_length_real, "f"),
+                    [
+                        "trim",
+                        format(kaggle_start_real, "f"),
+                        format(kaggle_length_real, "f"),
+                    ],
                 ],
-            ],
-        )
-        waveform_gpu = _normalize(event["waveform"].to(gpu_device))
+            )
+            waveform_gpu = event["waveform"].to(gpu_device)
+
         waveform_length = len(waveform_gpu[0])
+        kaggle_length_real = waveform_length / resample
         zeros_to_pad_start = torch.zeros(
             1,
             math.ceil((6 - kaggle_length_real) * kaggle_start_in_noise * resample),
@@ -93,9 +117,11 @@ def _get_events(
             (resample * 6) - waveform_length - len(zeros_to_pad_start[0]),
             device=gpu_device,
         )
-        waveform_gpu = torch.cat(
-            (zeros_to_pad_start, waveform_gpu, zeros_to_pad_end),
-            1,
+        waveform_gpu = _normalize(
+            torch.cat(
+                (zeros_to_pad_start, waveform_gpu, zeros_to_pad_end),
+                1,
+            ),
         )
         event["waveform"] = waveform_gpu
         events.append(event)
@@ -175,8 +201,6 @@ class MixureDataset(Dataset[SampleType]):
             noise_start_sample : (noise_start_sample + resample * 6),
         ]
 
-        # previous_time = time.time()
-
         events = _get_events(
             gpu_device=self._device,
             kaggle_dataset=kaggle_dataset,
@@ -185,13 +209,6 @@ class MixureDataset(Dataset[SampleType]):
             kaggle_starts=kaggle_starts,
             kaggle_lengths=kaggle_lengths,
         )
-
-        # now = time.time()
-        # print(
-        #     "data {diff} seconds.".format(
-        #         diff=now - previous_time,
-        #     ),
-        # )
 
         labels = list(set(map(lambda x: x["label"], events)))
         events_seperated_by_label = [

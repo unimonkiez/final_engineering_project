@@ -1,3 +1,4 @@
+from functools import lru_cache
 import os
 from typing import Any, Dict, List, Optional
 import torch
@@ -26,10 +27,19 @@ class KaggleDataset(Dataset[SampleType]):
         self._root_dir = _test_root_dir if is_test else _train_root_dir
         self._no_load = no_load
         self._effects = effects if effects else []
+        # if not no_load:
+        # self._load_all_to_cache()
+
+    def _load_all_to_cache(self) -> None:
+        length = self.__len__()
+        for idx in range(length):
+            self.get_item_length_in_seconds(idx)
+            self.__getitem__(idx)
 
     def __len__(self) -> int:
         return len(self._csv)
 
+    @lru_cache(maxsize=None)
     def get_item_length_in_seconds(self, idx: Any) -> float:
         if torch.is_tensor(idx):  # type: ignore
             idx = idx.tolist()
@@ -65,5 +75,6 @@ class KaggleDataset(Dataset[SampleType]):
 
         return sample
 
+    @lru_cache(maxsize=None)
     def __getitem__(self, idx: Any) -> SampleType:
         return self.get_item_with_effects(idx, [])
