@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Any, Dict, List
 import torch
 from torch.functional import Tensor
@@ -13,6 +14,7 @@ number_of_kaggle_for_mix = 6
 kaggle_diff_length = kaggle_max_length_seconds - kaggle_min_length_seconds
 
 
+@lru_cache(maxsize=None)
 def get_sample_sizes(total_mix: int, number_of_groups: int) -> Tensor:
     sample_sizes = torch.zeros(number_of_groups)
     for i in range(total_mix):

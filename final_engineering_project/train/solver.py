@@ -31,11 +31,13 @@ class Solver(object):
         print("Training..")
         previous_time = time.time()
         previous_loss = 0
+        total_number = len(self._data)
 
         for (i, batch) in enumerate(self._data):
             y = batch["waveform"]
             for event in batch["events"]:
                 x = event["waveform"]
+                x = torch.zeros_like(x)
                 o = event["o_vector"]
                 x_pred = self._model(y, o)
                 mse_loss = mean(self._criterion(x_pred, x), [1, 2])
@@ -59,8 +61,9 @@ class Solver(object):
                 if iteration % self._print_progress_every == 0:
                     now = time.time()
                     print(
-                        "trained {number} of batches, loss is {loss}, this batch took {diff} seconds.".format(
+                        "trained {number}/{total_number} of batches, loss is {loss}, this batch took {diff} seconds.".format(
                             number=iteration,
+                            total_number=total_number,
                             diff=now - previous_time,
                             loss=previous_loss,
                         ),

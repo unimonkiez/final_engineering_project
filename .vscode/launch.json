@@ -2,11 +2,26 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Test sample",
+      "type": "python",
+      "request": "launch",
+      "module": "final_engineering_project",
+      "args": ["--test-sample"]
+    },
+    {
       "name": "Test",
       "type": "python",
       "request": "launch",
       "module": "final_engineering_project",
-      "args": ["--test-enable"]
+      "args": [
+        "--test-enable",
+        "--train-print-progress-every",
+        "8",
+        "--train-batch-size",
+        "8",
+        "--train-size",
+        "1024"
+      ]
     },
     {
       "name": "Train",
@@ -17,11 +32,11 @@
         "--train-enable",
         "--train-override-model",
         "--train-print-progress-every",
-        "1",
+        "8",
         "--train-batch-size",
-        "10",
+        "32",
         "--train-size",
-        "1024"
+        "8192"
       ]
     }
   ]

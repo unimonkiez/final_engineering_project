@@ -1,6 +1,7 @@
 from final_engineering_project.data.create_data import create_data
 from final_engineering_project.train.train import train
 from final_engineering_project.test.test import test
+from final_engineering_project.test.create_sample import create_sample
 from final_engineering_project.args import args
 
 
@@ -24,5 +25,11 @@ def start() -> None:
             save_model_every=args.train_save_model_every,
             print_progress_every=args.train_print_progress_every,
         )
+    if args.test_sample:
+        create_sample()
     if args.test_enable:
-        test()
+        test(
+            size=args.train_size,
+            batch_size=args.train_batch_size,
+            print_progress_every=args.train_print_progress_every,
+        )

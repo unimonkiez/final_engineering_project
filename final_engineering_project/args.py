@@ -132,6 +132,19 @@ _parser.add_argument(
 #################################
 
 #################################
+# START - TEST SAMPLE arguments
+#################################
+_parser.add_argument(
+    "--test-sample",
+    dest="test_sample",
+    action="store_true",
+    help="Whatever or not execute test create sample.",
+)
+_parser.set_defaults(test_enable=False)
+#################################
+# END - TEST SAMPLE arguments
+#################################
+#################################
 # START - TEST arguments
 #################################
 _parser.add_argument(
@@ -141,6 +154,29 @@ _parser.add_argument(
     help="Whatever or not execute test model step.",
 )
 _parser.set_defaults(test_enable=False)
+
+_parser.add_argument(
+    "--test-size",
+    type=int,
+    required=False,
+    default=100,
+    help="Size of test samples to test the model with.",
+)
+
+_parser.add_argument(
+    "--test-batch-size",
+    type=int,
+    required=False,
+    default=10,
+    help="Size of samples in single batch.",
+)
+
+_parser.add_argument(
+    "--test-print-progress-every",
+    type=int,
+    required=False,
+    help="Print progress (with time it took) for every number of batches tested.",
+)
 #################################
 # END - TEST arguments
 #################################
