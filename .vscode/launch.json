@@ -7,7 +7,7 @@
       "request": "launch",
       "module": "final_engineering_project",
       "args": ["--test-enable"]
-    }
+    },
     {
       "name": "Train",
       "type": "python",
@@ -19,7 +19,9 @@
         "--train-print-progress-every",
         "1",
         "--train-batch-size",
-        "1"
+        "10",
+        "--train-size",
+        "1024"
       ]
     }
   ]

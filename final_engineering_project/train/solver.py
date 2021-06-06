@@ -2,6 +2,9 @@ from typing import Optional
 import torch
 import time
 from torch.utils.data import DataLoader
+from torch import log10, mean
+
+clip_value = 5
 
 
 class Solver(object):
@@ -17,7 +20,7 @@ class Solver(object):
         self._data = data
         self._model = model
         self._optimizer = optimizer
-        self._criterion = torch.nn.MSELoss(reduction="sum")
+        self._criterion = torch.nn.MSELoss(reduction="none")
         self._model_path = model_path
         self._save_model_every = save_model_every
         self._print_progress_every = print_progress_every
@@ -27,6 +30,7 @@ class Solver(object):
     ) -> None:
         print("Training..")
         previous_time = time.time()
+        previous_loss = 0
 
         for (i, batch) in enumerate(self._data):
             y = batch["waveform"]
@@ -34,11 +38,16 @@ class Solver(object):
                 x = event["waveform"]
                 o = event["o_vector"]
                 x_pred = self._model(y, o)
-                loss = self._criterion(x_pred, x)
+                mse_loss = mean(self._criterion(x_pred, x), [1, 2])
+                loss = mean(10 * log10(mse_loss))
 
                 self._optimizer.zero_grad()
+
                 loss.backward()
+                # torch.nn.utils.clip_grad(self._model.parameters(), clip_value)
+
                 self._optimizer.step()
+                previous_loss = loss
 
             iteration = i + 1
 
@@ -50,9 +59,10 @@ class Solver(object):
                 if iteration % self._print_progress_every == 0:
                     now = time.time()
                     print(
-                        "trained {number} of batches, this batch took {diff} seconds.".format(
+                        "trained {number} of batches, loss is {loss}, this batch took {diff} seconds.".format(
                             number=iteration,
                             diff=now - previous_time,
+                            loss=previous_loss,
                         ),
                     )
                     previous_time = now
