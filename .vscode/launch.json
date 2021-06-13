@@ -16,7 +16,7 @@
       "args": [
         "--test-enable",
         "--train-print-progress-every",
-        "8",
+        "1",
         "--train-batch-size",
         "8",
         "--train-size",
@@ -32,11 +32,11 @@
         "--train-enable",
         "--train-override-model",
         "--train-print-progress-every",
-        "8",
+        "1",
         "--train-batch-size",
         "32",
         "--train-size",
-        "8192"
+        "1024"
       ]
     }
   ]

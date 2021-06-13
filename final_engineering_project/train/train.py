@@ -3,10 +3,8 @@ from final_engineering_project.train.model import Model
 from final_engineering_project.train.OVectorUtility import OVectorUtility
 import os
 import torch
-import torchaudio
-from torchaudio.models.conv_tasnet import ConvTasNet
 from torch.utils.data import DataLoader
-from final_engineering_project.properties import model_path
+from final_engineering_project.properties import model_path, optimizer_path
 from .solver import Solver
 from .train_dataset import TrainDataset
 
@@ -27,7 +25,7 @@ def train(
         except OSError:
             pass
 
-    gpu_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    gpu_device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # cpu_device = torch.device("cpu")
 
     o_vector_utility = OVectorUtility(
@@ -53,24 +51,25 @@ def train(
         o_vector_length=o_vector_utility.get_vector_length(),
         device=gpu_device,
     )
-    if not override_model:
-        model.load_state_dict(torch.load(model_path))
-        model.eval()
 
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=5e-4,
-        weight_decay=0.0,
     )
+
+    if not override_model:
+        optimizer.load_state_dict(torch.load(optimizer_path))
+        model.load_state_dict(torch.load(model_path))
+        model.train()
 
     solver = Solver(
         data=train_dataloader,
         model=model,
         optimizer=optimizer,
-        model_path=model_path,
         save_model_every=save_model_every,
         print_progress_every=print_progress_every,
     )
     solver.train()
 
+    torch.save(optimizer.state_dict(), optimizer_path)
     torch.save(model.state_dict(), model_path)

@@ -3,3 +3,4 @@ NOISE_PATH=/home/dsi/sarahel/dev/final-engineering-project/.data/noise
 TRAIN_PATH=/home/dsi/sarahel/dev/final-engineering-project/.data/processed/train
 TEST_PATH=/home/dsi/sarahel/dev/final-engineering-project/.data/processed/test
 MODEL_PATH=/home/dsi/sarahel/dev/final-engineering-project/.data/processed/model
+OPTIMIZER_PATH=/home/dsi/sarahel/dev/final-engineering-project/.data/processed/optimizer

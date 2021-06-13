@@ -59,9 +59,10 @@ def test(
 
         for event_i, event in enumerate(batch["events"]):
             x = event["waveform"]
+            # x = torch.zeros_like(x)  # Test
             o = event["o_vector"]
             x_pred = model(y, o)
-            previous_snr = get_snr(x, x)
+            previous_snr = get_snr(x_pred, x)
 
         iteration = i + 1
         if print_progress_every is not None:
@@ -72,7 +73,7 @@ def test(
                         number=iteration,
                         total_number=total_number,
                         diff=now - previous_time,
-                        snr=previous_snr,
+                        snr=previous_snr.mean(),
                     ),
                 )
                 previous_time = now
