@@ -1,7 +1,7 @@
 from typing import Any, Tuple
 import torch
 import torch.nn as nn
-from torchaudio.models.conv_tasnet import ConvBlock
+from torchaudio.models.conv_tasnet import ConvBlock, MaskGenerator
 
 
 class Model(nn.Module):
@@ -48,16 +48,26 @@ class Model(nn.Module):
             no_residual=True,
         )
 
-        self._after_o = [
-            ConvBlock(
-                io_channels=self._B,
-                hidden_channels=self._H,
-                kernel_size=self._P,
-                padding=1,
-                no_residual=i == 2,
-            )
-            for i in range(3)
-        ]
+        self._mask_generator = MaskGenerator(
+            input_dim=self._N,
+            num_sources=1,
+            kernel_size=self._P,
+            num_feats=self._B,
+            num_hidden=self._H,
+            num_layers=self._X,
+            num_stacks=self._R,
+        )
+
+        # self._after_o = [
+        #     ConvBlock(
+        #         io_channels=self._B,
+        #         hidden_channels=self._H,
+        #         kernel_size=self._P,
+        #         padding=1,
+        #         no_residual=i == 2,
+        #     )
+        #     for i in range(3)
+        # ]
 
         self._embedding = nn.Linear(
             o_vector_length,
@@ -68,7 +78,8 @@ class Model(nn.Module):
             self._encoder = self._encoder.to(device)
             self._decoder = self._decoder.to(device)
             self._before_o = self._before_o.to(device)
-            self._after_o = [x.to(device) for x in self._after_o]
+            self._mask_generator = self._mask_generator.to(device)
+            # self._after_o = [x.to(device) for x in self._after_o]
             self._embedding = self._embedding.to(device)
 
     # def _align_num_frames_with_strides(
@@ -91,18 +102,24 @@ class Model(nn.Module):
     #     )
     #     return torch.cat([input, pad], 2), num_paddings
 
-    def _get_mask(self, input: torch.Tensor) -> torch.Tensor:
-        batch_size = input.shape[0]
-        mask = 0.0
-        for block in self._after_o:
-            residual, skip = block(input)
-            if residual is not None:  # the last conv layer does not produce residual
-                input = input + residual
-            mask = mask + skip
+    # def _get_mask(self, input: torch.Tensor) -> torch.Tensor:
+    #     batch_size = input.shape[0]
 
-        mask = mask.view(batch_size, 1, self._N, -1)
+    #     feats = self._input_norm(input)
+    #     feats = self._input_conv(feats)
+    #     mask = 0.0
+    #     for layer in self._after_o:
+    #         residual, skip = layer(feats)
+    #         if residual is not None:  # the last conv layer does not produce residual
+    #             feats = feats + residual
+    #         mask = mask + skip
+    #     mask = self._output_prelu(mask)
+    #     mask = self._output_conv(mask)
+    #     mask = torch.sigmoid(mask)
 
-        return mask
+    #     mask = mask.view(batch_size, 1, self._N, -1)
+
+    #     return mask
 
     def forward(self, y: torch.Tensor, o: torch.Tensor) -> torch.Tensor:
         batch_size = y.shape[0]
@@ -116,7 +133,7 @@ class Model(nn.Module):
         _, skip = self._before_o(encoded)
         H = skip
         Z = H * c3d
-        mask = self._get_mask(Z)
+        mask = self._mask_generator(Z)
         masked = mask * encoded.unsqueeze(1)
         masked3d = masked.view(batch_size, self._N, -1)
         output = self._decoder(masked3d)

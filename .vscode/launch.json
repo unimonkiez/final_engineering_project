@@ -34,9 +34,9 @@
         "--train-print-progress-every",
         "1",
         "--train-batch-size",
-        "32",
+        "8",
         "--train-size",
-        "1024"
+        "8192"
       ]
     }
   ]

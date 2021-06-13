@@ -25,7 +25,7 @@ def train(
         except OSError:
             pass
 
-    gpu_device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    gpu_device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
     # cpu_device = torch.device("cpu")
 
     o_vector_utility = OVectorUtility(
