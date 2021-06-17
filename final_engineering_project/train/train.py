@@ -25,7 +25,7 @@ def train(
         except OSError:
             pass
 
-    gpu_device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+    gpu_device = torch.device("cuda:7" if torch.cuda.is_available() else "cpu")
     # cpu_device = torch.device("cpu")
 
     o_vector_utility = OVectorUtility(
@@ -49,13 +49,14 @@ def train(
 
     model = Model(
         o_vector_length=o_vector_utility.get_vector_length(),
-        device=gpu_device,
-    )
+    ).to(gpu_device)
 
+    clip_value = 0.005
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=5e-4,
     )
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=32, gamma=0.2)
 
     if not override_model:
         optimizer.load_state_dict(torch.load(optimizer_path))
@@ -65,7 +66,9 @@ def train(
     solver = Solver(
         data=train_dataloader,
         model=model,
+        clip_value=clip_value,
         optimizer=optimizer,
+        scheduler=scheduler,
         save_model_every=save_model_every,
         print_progress_every=print_progress_every,
     )

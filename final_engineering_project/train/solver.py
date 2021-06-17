@@ -5,15 +5,15 @@ from torch.utils.data import DataLoader
 from torch import log10, mean
 from final_engineering_project.properties import model_path, optimizer_path
 
-clip_value = 5
-
 
 class Solver(object):
     def __init__(
         self,
         data: DataLoader,
         model: torch.nn.Module,
+        clip_value: float,
         optimizer: torch.optim.Optimizer,
+        scheduler: torch.optim.Optimizer,
         save_model_every: Optional[int],
         print_progress_every: Optional[int],
     ) -> None:
@@ -23,6 +23,8 @@ class Solver(object):
         self._criterion = torch.nn.MSELoss(reduction="none")
         self._save_model_every = save_model_every
         self._print_progress_every = print_progress_every
+        self._clip_value = clip_value
+        self._scheduler = scheduler
 
     def train(
         self,
@@ -30,10 +32,12 @@ class Solver(object):
         print("Training..")
         previous_time = time.time()
         previous_loss = 0
+        previous_norm = 0
         total_number = len(self._data)
 
         for (i, batch) in enumerate(self._data):
             y = batch["waveform"]
+            self._scheduler.step()
             for event in batch["events"]:
                 x = event["waveform"]
                 # x = torch.zeros_like(x)  # Test
@@ -44,10 +48,19 @@ class Solver(object):
 
                 self._optimizer.zero_grad()
                 loss.backward()
-                # torch.nn.utils.clip_grad(self._model.parameters(), clip_value)
+                torch.nn.utils.clip_grad.clip_grad_norm(
+                    self._model.parameters(),
+                    self._clip_value,
+                )
 
                 self._optimizer.step()
+
                 previous_loss = loss
+                previous_norm = 0.0
+                for p in self._model.parameters():
+                    param_norm = p.grad.data.norm(2)
+                    previous_norm += param_norm.item() ** 2
+                previous_norm = previous_norm ** (1.0 / 2)
 
             iteration = i + 1
 
@@ -60,11 +73,13 @@ class Solver(object):
                 if iteration % self._print_progress_every == 0:
                     now = time.time()
                     print(
-                        "trained {number}/{total_number} of batches, loss is {loss}, this batch took {diff} seconds.".format(
+                        "trained {number}/{total_number} of batches, loss is {loss}, norm is {norm}, lr is {lr}, this batch took {diff} seconds.".format(
                             number=iteration,
                             total_number=total_number,
                             diff=now - previous_time,
                             loss=previous_loss,
+                            norm=previous_norm,
+                            lr=self._scheduler.get_last_lr()[0],
                         ),
                     )
                     previous_time = now
