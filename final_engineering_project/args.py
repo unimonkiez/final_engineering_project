@@ -107,6 +107,14 @@ _parser.add_argument(
 )
 
 _parser.add_argument(
+    "--train-epoch-size",
+    type=int,
+    required=False,
+    default=1,
+    help="Size of train epochs to train the model.",
+)
+
+_parser.add_argument(
     "--train-batch-size",
     type=int,
     required=False,

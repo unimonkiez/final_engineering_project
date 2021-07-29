@@ -19,6 +19,7 @@ def start() -> None:
             use_fs=args.train_use_fs,
             override_model=args.train_override_model,
             size=args.train_size,
+            epoch_size=args.train_epoch_size,
             batch_size=args.train_batch_size,
             min_mixure=args.train_min_mixure,
             max_mixure=args.train_max_mixure,

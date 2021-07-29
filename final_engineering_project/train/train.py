@@ -13,6 +13,7 @@ def train(
     use_fs: bool,
     override_model: bool,
     size: int,
+    epoch_size: int,
     batch_size: int,
     min_mixure: int,
     max_mixure: int,
@@ -25,7 +26,7 @@ def train(
         except OSError:
             pass
 
-    gpu_device = torch.device("cuda:7" if torch.cuda.is_available() else "cpu")
+    gpu_device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     # cpu_device = torch.device("cpu")
 
     o_vector_utility = OVectorUtility(
@@ -64,6 +65,7 @@ def train(
         model.train()
 
     solver = Solver(
+        epoch_size=epoch_size,
         data=train_dataloader,
         model=model,
         clip_value=clip_value,
