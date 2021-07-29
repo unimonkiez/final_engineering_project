@@ -13,7 +13,7 @@ resample = 8000
 
 
 def create_sample() -> None:
-    gpu_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    gpu_device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     cpu_device = torch.device("cpu")
 
     o_vector_utility = OVectorUtility(
@@ -22,8 +22,7 @@ def create_sample() -> None:
 
     model = Model(
         o_vector_length=o_vector_utility.get_vector_length(),
-        device=gpu_device,
-    )
+    ).to(gpu_device)
     model.load_state_dict(torch.load(model_path))
     model.eval()
 
