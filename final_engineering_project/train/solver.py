@@ -42,7 +42,7 @@ class Solver(object):
                 y = batch["waveform"]
                 for event in batch["events"]:
                     x = event["waveform"]
-                    # x = torch.zeros_like(x)  # Test
+                    x = torch.zeros_like(x)  # Test
                     o = event["o_vector"]
                     x_pred = self._model(y, o)
                     mse_loss = mean(self._criterion(x_pred, x), [1, 2])
@@ -83,9 +83,9 @@ class Solver(object):
                                 diff=now - previous_time,
                                 loss=previous_loss,
                                 norm=previous_norm,
-                                lr=self._scheduler.get_last_lr()[0],
+                                lr=self._scheduler.get_lr()[0],
                             ),
                         )
                         previous_time = now
-            self._scheduler.step()
+                self._scheduler.step()
         print("Finished training!")

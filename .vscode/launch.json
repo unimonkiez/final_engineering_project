@@ -33,10 +33,14 @@
         "--train-override-model",
         "--train-print-progress-every",
         "1",
+        "--train-save-model-every",
+        "1",
+        "--train-epoch-size",
+        "12",
         "--train-batch-size",
         "8",
         "--train-size",
-        "8192"
+        "1024"
       ]
     }
   ]

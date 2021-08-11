@@ -26,7 +26,7 @@ def train(
         except OSError:
             pass
 
-    gpu_device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    gpu_device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
     # cpu_device = torch.device("cpu")
 
     o_vector_utility = OVectorUtility(
@@ -57,7 +57,7 @@ def train(
         model.parameters(),
         lr=5e-4,
     )
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=32, gamma=0.2)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.2)
 
     if not override_model:
         optimizer.load_state_dict(torch.load(optimizer_path))
