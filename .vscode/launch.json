@@ -35,12 +35,14 @@
         "1",
         "--train-save-model-every",
         "1",
+        "--train-step-size",
+        "300",
         "--train-epoch-size",
-        "12",
+        "1500",
         "--train-batch-size",
         "8",
         "--train-size",
-        "1024"
+        "8"
       ]
     }
   ]

@@ -63,8 +63,6 @@ class Model(nn.Module):
         )
 
     def forward(self, y: torch.Tensor, o: torch.Tensor) -> torch.Tensor:
-        batch_size = y.shape[0]
-
         c = self._embedding(o)
         c_row, c_column = c.size()
         c3d = c.reshape(c_row, c_column, 1)
@@ -74,8 +72,7 @@ class Model(nn.Module):
         H = skip
         Z = H * c3d
         mask = self._mask_generator(Z)
-        masked = mask * encoded.unsqueeze(1)
-        masked3d = masked.view(batch_size, self._N, -1)
-        output = self._decoder(masked3d)
+        masked = mask.squeeze(1) * encoded
+        output = self._decoder(masked)
 
         return output

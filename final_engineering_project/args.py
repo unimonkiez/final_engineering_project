@@ -123,6 +123,14 @@ _parser.add_argument(
 )
 
 _parser.add_argument(
+    "--train-step-size",
+    type=int,
+    required=False,
+    default=100,
+    help="Size of steps needed to decrease learning rate",
+)
+
+_parser.add_argument(
     "--train-save-model-every",
     type=int,
     required=False,

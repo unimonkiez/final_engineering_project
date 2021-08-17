@@ -1,7 +1,4 @@
 from final_engineering_project.test.metric import get_snr
-import os
-from os import path
-from shutil import rmtree
 import time
 from typing import Optional
 import torch
@@ -19,7 +16,7 @@ def test(
     batch_size: int,
     print_progress_every: Optional[int],
 ) -> None:
-    gpu_device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    gpu_device = torch.device("cuda:5" if torch.cuda.is_available() else "cpu")
     cpu_device = torch.device("cpu")
 
     o_vector_utility = OVectorUtility(
@@ -28,8 +25,7 @@ def test(
 
     model = Model(
         o_vector_length=o_vector_utility.get_vector_length(),
-        device=gpu_device,
-    )
+    ).to(gpu_device)
     model.load_state_dict(torch.load(model_path))
     model.eval()
 
@@ -46,9 +42,6 @@ def test(
         batch_size=batch_size,
         shuffle=False,
     )
-
-    rmtree(path.join(test_path, "results"), ignore_errors=True)
-    os.makedirs(path.join(test_path, "results", "files"), exist_ok=True)
 
     previous_time = time.time()
     previous_snr = 0

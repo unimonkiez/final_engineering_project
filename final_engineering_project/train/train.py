@@ -1,9 +1,10 @@
+from final_engineering_project.test.save_sample import save_sample
 from typing import Optional
 from final_engineering_project.train.model import Model
 from final_engineering_project.train.OVectorUtility import OVectorUtility
 import os
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, dataloader
 from final_engineering_project.properties import model_path, optimizer_path
 from .solver import Solver
 from .train_dataset import TrainDataset
@@ -13,6 +14,7 @@ def train(
     use_fs: bool,
     override_model: bool,
     size: int,
+    step_size: int,
     epoch_size: int,
     batch_size: int,
     min_mixure: int,
@@ -26,7 +28,7 @@ def train(
         except OSError:
             pass
 
-    gpu_device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
+    gpu_device = torch.device("cuda:5" if torch.cuda.is_available() else "cpu")
     # cpu_device = torch.device("cpu")
 
     o_vector_utility = OVectorUtility(
@@ -57,7 +59,11 @@ def train(
         model.parameters(),
         lr=5e-4,
     )
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.2)
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer,
+        step_size=step_size,
+        gamma=0.2,
+    )
 
     if not override_model:
         optimizer.load_state_dict(torch.load(optimizer_path))
@@ -78,3 +84,8 @@ def train(
 
     torch.save(optimizer.state_dict(), optimizer_path)
     torch.save(model.state_dict(), model_path)
+
+    save_sample(
+        model=model,
+        dataloader=train_dataloader,
+    )

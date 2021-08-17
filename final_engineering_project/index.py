@@ -21,6 +21,7 @@ def start() -> None:
             size=args.train_size,
             epoch_size=args.train_epoch_size,
             batch_size=args.train_batch_size,
+            step_size=args.train_step_size,
             min_mixure=args.train_min_mixure,
             max_mixure=args.train_max_mixure,
             save_model_every=args.train_save_model_every,
