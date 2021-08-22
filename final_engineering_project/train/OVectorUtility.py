@@ -13,6 +13,7 @@ class OVectorUtility(object):
         self._device = device
         self._csv = pd.read_csv(_csv_train_file)
         self._label_list = list(set(self._csv.label))
+        self._label_list.sort()  # So will have same list order between runs
         self._label_dict = {k: v for v, k in enumerate(self._label_list)}
 
     def get_vector_length(self) -> int:
