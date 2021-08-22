@@ -58,8 +58,9 @@ class Model(nn.Module):
         )
 
         self._embedding = nn.Linear(
-            o_vector_length,
-            self._D,
+            in_features=o_vector_length,
+            out_features=self._D,
+            bias=False,
         )
 
     def forward(self, y: torch.Tensor, o: torch.Tensor) -> torch.Tensor:
