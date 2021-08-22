@@ -86,6 +86,7 @@ def train(
     torch.save(model.state_dict(), model_path)
 
     save_sample(
-        model=model,
         dataloader=train_dataloader,
+        model=model,
+        o_vector_utility=o_vector_utility,
     )

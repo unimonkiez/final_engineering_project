@@ -38,4 +38,5 @@ def create_sample() -> None:
     save_sample(
         dataloader=test_dataloader,
         model=model,
+        o_vector_utility=o_vector_utility,
     )
